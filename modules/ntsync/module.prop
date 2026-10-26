@@ -1,0 +1,6 @@
+id=ntsync
+name=NTSync node
+version=1
+versionCode=1
+author=OneFeiFan
+description=Create /dev/ntsync for Wine/Proton

@@ -1,0 +1,6 @@
+id=sysctl-tune
+name=GKI sysctl tuning
+version=1
+versionCode=1
+author=OneFeiFan
+description=Raise vm.max_map_count and inotify limits for Wine and containers
