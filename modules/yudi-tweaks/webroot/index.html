@@ -207,7 +207,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="row">
       <div class="copy">
         <div class="title">le9uo 工作集保护</div>
-        <div class="desc">内存压力下保护匿名页和干净文件页；内核默认关闭。</div>
+        <div class="desc">内存压力下保护匿名页和干净文件页；内核补丁默认开启（workingset_protection=1），关闭后模块写 0。</div>
         <div class="current" id="cur-le9uo"></div>
       </div>
       <label class="switch"><input type="checkbox" id="LE9UO"><span></span></label>
