@@ -172,7 +172,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="kernel" id="kernel">读取内核信息…</div>
   </header>
 
-  <p class="lede">内核只保留功能，不强制默认值。下面的开关保存后，在下次开机时由模块应用。</p>
+  <p class="lede">除 le9uo 补丁自身默认开启外，内核只保留功能，不强制默认值。下面的开关保存后，在下次开机时由模块应用。</p>
 
   <div class="status-grid">
     <div class="status-cell"><div class="status-label">拥塞控制</div><div class="status-value" id="st-cc">—</div></div>
@@ -180,6 +180,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="status-cell"><div class="status-label">le9uo</div><div class="status-value" id="st-le9uo">—</div></div>
     <div class="status-cell"><div class="status-label">KSM</div><div class="status-value" id="st-ksm">—</div></div>
     <div class="status-cell"><div class="status-label">sda 调度器</div><div class="status-value" id="st-sched">—</div></div>
+    <div class="status-cell"><div class="status-label">CPU 限流</div><div class="status-value" id="st-cfs">—</div></div>
+    <div class="status-cell"><div class="status-label">ntsync</div><div class="status-value" id="st-ntsync">—</div></div>
     <div class="status-cell"><div class="status-label">模块状态</div><div class="status-value" id="st-bridge">—</div></div>
   </div>
 
@@ -196,6 +198,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   <section>
     <h2>性能 <span>需要内核支持</span></h2>
+    <div class="row">
+      <div class="copy">
+        <div class="title">CPU 限流（CFS_BANDWIDTH）</div>
+        <div class="desc">内核已开启 kABI 拆分版 CFS 带宽，Droidspaces 的 --cpus 可用。这是内核能力，不需要模块开关。</div>
+        <div class="current" id="cur-cfs"></div>
+      </div>
+    </div>
     <div class="row">
       <div class="copy">
         <div class="title">BBRv3 拥塞控制</div>
@@ -270,6 +279,23 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <label class="switch"><input type="checkbox" id="DAMON"><span></span></label>
     </div>
   </details>
+
+  <section>
+    <h2>关于 <span>模块 v1.2</span></h2>
+    <div class="row">
+      <div class="copy">
+        <div class="title">内核镜像</div>
+        <div class="desc">boot_272_p1p2.img：5.10.272 + KernelSU + CFS_BANDWIDTH（kABI 拆分）+ P0/P1/P2 修复。已验证开机、7298 个导出符号 CRC 差异 0、355 个 vendor_boot 和 315 个 vendor_dlkm 模块 0 失败。</div>
+        <div class="current">源码与补丁：OneFeiFan/gki-kernel-5.10-xiaomi-pad6max</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">模块</div>
+        <div class="desc">yudi-tweaks v1.2 管理运行时开关；ntsync v1.1 按 /sys/class/misc/ntsync/dev 创建节点。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <div class="savebar">
@@ -373,7 +399,7 @@ async function load() {
   if (cfgText.errno === 0 && cfgText.stdout.trim()) setCfgFromText(cfgText.stdout);
   renderForm();
 
-  const info = await run("uname -r; echo '|'; cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null; echo '|'; cat /sys/block/zram0/comp_algorithm 2>/dev/null; echo '|'; cat /proc/sys/vm/workingset_protection 2>/dev/null; echo '|'; cat /sys/kernel/mm/ksm/run 2>/dev/null; echo '|'; grep -H . /sys/block/sda/queue/scheduler 2>/dev/null");
+  const info = await run("uname -r; echo '|'; cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null; echo '|'; cat /sys/block/zram0/comp_algorithm 2>/dev/null; echo '|'; cat /proc/sys/vm/workingset_protection 2>/dev/null; echo '|'; cat /sys/kernel/mm/ksm/run 2>/dev/null; echo '|'; grep -H . /sys/block/sda/queue/scheduler 2>/dev/null; echo '|'; if [ -e /dev/cpuctl/cpu.cfs_quota_us ] || [ -e /sys/fs/cgroup/cpu.max ]; then echo 可用; else echo 不可用; fi; echo '|'; cat /sys/class/misc/ntsync/dev 2>/dev/null");
   const p = (info.stdout || '').trim().split('|');
   const kernel = (p[0] || '').trim();
   $('kernel').textContent = kernel || 'kernel unknown';
@@ -386,11 +412,14 @@ async function load() {
   const schedValue = (p[5] || '—').trim().replace(/^.*scheduler:/, '').trim();
   const schedCurrent = schedValue.match(/\[([^\]]+)\]/);
   $('st-sched').textContent = schedCurrent ? schedCurrent[1] : schedValue;
+  $('st-cfs').textContent = (p[6] || '—').trim();
+  $('st-ntsync').textContent = (p[7] || '未加载').trim();
   $('cur-bbr3').textContent = '当前：' + $('st-cc').textContent;
   $('cur-le9uo').textContent = '当前：' + $('st-le9uo').textContent;
   $('cur-zram').textContent = '当前：' + $('st-zram').textContent;
   $('cur-ksm').textContent = '当前：' + $('st-ksm').textContent;
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
+  $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
 }
 
 $('save').addEventListener('click', save);
