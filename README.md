@@ -8,17 +8,19 @@ These modules only change runtime settings. They do not patch or replace kernel 
 
 | Module | Version | Purpose |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.2 | WebUI for runtime toggles and kernel status: BBRv3, le9uo, zram `lz4kd`, KSM, ADIOS and DAMON; also shows the CPU limit (CFS_BANDWIDTH) and the ntsync device. |
+| `yudi-tweaks` | 1.3 | WebUI for runtime toggles and kernel status: BBRv3, le9uo, zram `lz4kd`, KSM, ADIOS and DAMON; also shows the CPU limit (CFS_BANDWIDTH) and the ntsync device. |
 | `ntsync` | 1.1 | Creates `/dev/ntsync` at boot for Wine/Proton using the misc device's dynamic minor. Requires `CONFIG_NTSYNC=y`. |
 
 ## Kernel
 
-The current verified image is `boot_272_p1p2.img`: 5.10.272 + KernelSU + the kABI-safe
-`CONFIG_CFS_BANDWIDTH` split + the P0/P1/P2 fixes (module CRC rejection restored, IPC
-`next_id` moved out of `struct ipc_ids`, `netns_ipv4` layout pins, ntsync time namespace
-and owner checks). Gates: 7298 exported symbols with 0 CRC differences; all 355
-`vendor_boot` and 315 `vendor_dlkm` modules pass the CRC scan; the device boots with 420
-loaded modules.
+The current verified image is `boot_272_p1p3.img`: 5.10.272 + KernelSU + the kABI-safe
+`CONFIG_CFS_BANDWIDTH` split (the state pointer now sits in the cfs_rq tail padding at
+offset 472, so the vendor data array stays at its stock offset 344) + the P0/P1/P2 fixes
+(module CRC rejection restored, IPC `next_id` moved out of `struct ipc_ids`, `netns_ipv4`
+layout pins, ntsync time namespace and owner checks) + the 0046-0048 fixes (bbr3
+cwnd_event NULL state, futex_waitv timer on kcalloc failure). Gates: 7298 exported
+symbols with 0 CRC differences; all 355 `vendor_boot` and 315 `vendor_dlkm` modules pass
+the CRC scan; the device boots with 420 loaded modules.
 
 Source and patches: <https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max>
 
