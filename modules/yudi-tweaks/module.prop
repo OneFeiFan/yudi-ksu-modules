@@ -1,6 +1,6 @@
 id=yudi-tweaks
 name=Yudi kernel tweaks
-version=1.4
-versionCode=5
+version=1.5
+versionCode=6
 author=OneFeiFan
 description=Runtime toggles and kernel status for BBRv3, le9uo, zram, KSM, ADIOS and DAMON

@@ -1,38 +1,18 @@
 # yudi-ksu-modules
 
-KernelSU modules for the Xiaomi Pad 6 Max (yudi) running the custom GKI 5.10 kernel.
-
-These modules only change runtime settings. They do not patch or replace kernel code.
-
-## Modules
+KernelSU modules for the Xiaomi Pad 6 Max (yudi) running the custom GKI 5.10
+kernel.
 
 | Module | Version | Purpose |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.4 | WebUI for runtime toggles and kernel status: BBRv3, le9uo, zram `lz4kd`, KSM, ADIOS and DAMON; also shows the CPU limit (CFS_BANDWIDTH) and the ntsync device. |
-| `ntsync` | 1.1 | Creates `/dev/ntsync` at boot for Wine/Proton using the misc device's dynamic minor. Requires `CONFIG_NTSYNC=y`. |
-
-## Kernel
-
-The current verified image is `boot_272_p1p4.img`: 5.10.272 + KernelSU + the kABI-safe
-`CONFIG_CFS_BANDWIDTH` split (the state pointer now sits in the cfs_rq tail padding at
-offset 472, so the vendor data array stays at its stock offset 344) + the P0/P1/P2 fixes
-(module CRC rejection restored, IPC `next_id` moved out of `struct ipc_ids`, `netns_ipv4`
-layout pins, ntsync time namespace and owner checks) + the 0046-0048 fixes (bbr3
-cwnd_event NULL state, futex_waitv timer on kcalloc failure) + CRIU DIAG/FHANDLE.
-Gates: 7298 exported symbols with 0 CRC differences; all 355 `vendor_boot` and 315
-`vendor_dlkm` modules pass the CRC scan; the device boots with 420 loaded modules;
-ntsync selftest 10/11 (the `stress_wait` failure is a test-binary issue: its non-atomic
-`stress_counter` is hoisted out of the loop by the compiler; the kernel's mutex handoff
-is fine).
-
-Source and patches: <https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max>
-
-`yudi-tweaks` only works fully on this kernel; on the stock kernel it skips features that
-are not compiled in.
+| `yudi-tweaks` | 1.5 | Runtime toggles and a status page |
+| `ntsync` | 1.1 | Creates `/dev/ntsync` from the misc device |
 
 ## yudi-tweaks
 
-Defaults are deliberately conservative:
+The kernel keeps stock defaults. The module applies the selected values at
+boot. le9uo is the exception: the kernel patch enables it by default, and the
+module writes 0 when the toggle is off.
 
 | Toggle | Default |
 | --- | --- |
@@ -44,43 +24,28 @@ Defaults are deliberately conservative:
 | ADIOS scheduler | off |
 | DAMON_RECLAIM | off |
 
-The kernel keeps its stock defaults; the module applies the selected values at boot.
-le9uo is the exception: the kernel patch enables `workingset_protection=1` by default,
-and the module writes 0 when the toggle is off.
+CPU limits (`Droidspaces --cpus`) come from the kernel's CFS bandwidth
+support. The WebUI reports the status; there is no module toggle.
 
-CPU limits (`Droidspaces --cpus`) are a kernel capability (`CONFIG_CFS_BANDWIDTH`, kABI
-split); the WebUI only reports the status, there is no module toggle.
+Changing the zram algorithm does `swapoff` + `reset` and re-enables swap. The
+module skips the switch when zram swap is in use above a small threshold.
 
-Changing zram requires `swapoff`, `reset`, setting the algorithm and re-enabling swap.
-The module skips the switch when zram swap is in use above a small threshold.
-
-The WebUI writes `/data/adb/yudi-tweaks.conf`; changes take effect after a reboot.
-KernelSU provides the WebUI entry automatically when `webroot/index.html` exists.
+The WebUI writes `/data/adb/yudi-tweaks.conf`. Changes apply after a reboot.
+KernelSU shows the WebUI when `webroot/index.html` exists.
 
 ## ntsync
 
-Reads `/sys/class/misc/ntsync/dev` and creates the node with the actual major:minor; the
-minor is allocated by the kernel and must not be hardcoded. The yudi-tweaks WebUI also
-shows the current ntsync minor.
+Reads `/sys/class/misc/ntsync/dev` and creates the node with the real
+major:minor. The minor is allocated by the kernel and must not be hardcoded.
 
 ## Install
-
-### From a zip
 
 ```sh
 ./scripts/package.sh
 ```
 
-Install `dist/<module>.zip` with the KernelSU app.
-
-### From adb
-
-```sh
-./scripts/install.sh
-```
-
-The script packages the modules, installs them with `ksud module install`, and reboots.
-It expects `adb` and a working `su` (KernelSU).
+Install `dist/<module>.zip` with the KernelSU app, or use `./scripts/install.sh`
+with adb and a working `su`.
 
 ## Verify
 
@@ -93,23 +58,26 @@ cat /proc/sys/vm/workingset_protection
 cat /sys/block/zram0/comp_algorithm
 su -c 'cat /sys/class/misc/ntsync/dev'
 ls -l /dev/ntsync
-grep ntsync /proc/misc
 su -c '/data/local/Droidspaces/bin/droidspaces check'
 ```
 
-Expected after reboot with the defaults: `1048576`, `524288`, `1024`, `bbr3`, `1`,
-`[lz4kd]`, an ntsync major:minor matching `/sys/class/misc/ntsync/dev`, and Droidspaces
-reporting CPU limit support.
+Expected with the defaults: `1048576`, `524288`, `1024`, `bbr3`, `1`,
+`[lz4kd]`, an ntsync major:minor matching sysfs, and Droidspaces reporting CPU
+limit support.
 
-## Notes
+## Kernel images
 
-- `yudi-tweaks` skips features that are not compiled in on the stock kernel.
-- `ntsync` only creates the device node; the kernel must provide `CONFIG_NTSYNC=y`.
-- The zram switch is intentionally conservative. If the swap device is busy, the module
-  leaves the current algorithm alone.
-- The WebUI reports the CPU limit from `/dev/cpuctl/cpu.cfs_quota_us` or
-  `/sys/fs/cgroup/cpu.max`; it does not change cgroup settings.
+The kernel release ships two images with the same kernel:
+
+- `yudi-5.10.272-<date>-ksu.img` — with KernelSU
+- `yudi-5.10.272-<date>-noroot.img` — without root
+
+Verified on the device: 7298 exported symbols with 0 CRC differences, 355
+`vendor_boot` and 315 `vendor_dlkm` modules with 0 failures, 420 loaded modules,
+NTSync v2 selftest 11/11, futex_waitv 7/7, epoll 63/63.
+
+Source and patches: <https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max>
 
 ## License
 
-GPL-2.0. See `LICENSE`.
+GPL-2.0。See `LICENSE`.

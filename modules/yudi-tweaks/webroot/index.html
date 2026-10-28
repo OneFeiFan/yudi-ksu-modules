@@ -281,18 +281,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   </details>
 
   <section>
-    <h2>关于 <span>模块 v1.4</span></h2>
+    <h2>关于 <span>模块 v1.5</span></h2>
     <div class="row">
       <div class="copy">
         <div class="title">内核镜像</div>
-        <div class="desc">boot_272_p1p4.img：5.10.272 + KernelSU + CFS_BANDWIDTH（指针在 cfs_rq 尾部填充 472）+ P0/P1/P2 + 0046-0048 + CRIU DIAG/FHANDLE。已验证开机、7298 个导出符号 CRC 差异 0、355 vendor_boot + 315 vendor_dlkm 模块 0 失败、ntsync 自测 10/11（stress_wait 为测试程序缺陷）。</div>
+        <div class="desc">5.10.272 GKI（yudi）+ KernelSU + CFS_BANDWIDTH（cfs_rq 尾部填充 472）+ CRIU DIAG/FHANDLE。7298 个导出符号 CRC 差异 0，355 vendor_boot + 315 vendor_dlkm 模块 0 失败，ntsync 11/11。</div>
         <div class="current">源码与补丁：OneFeiFan/gki-kernel-5.10-xiaomi-pad6max</div>
       </div>
     </div>
     <div class="row">
       <div class="copy">
         <div class="title">模块</div>
-        <div class="desc">yudi-tweaks v1.4 管理运行时开关；ntsync v1.1 按 /sys/class/misc/ntsync/dev 创建节点。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
+        <div class="desc">yudi-tweaks v1.5 管理运行时开关；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
       </div>
     </div>
   </section>
