@@ -1,53 +1,50 @@
 # yudi-ksu-modules
 
-KernelSU modules for the Xiaomi Pad 6 Max (yudi) running the custom GKI 5.10
-kernel.
+小米平板 6 Max（yudi）自定义 GKI 5.10 内核的 KernelSU 模块。
 
-| Module | Version | Purpose |
+| 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.5 | Runtime toggles and a status page |
-| `ntsync` | 1.1 | Creates `/dev/ntsync` from the misc device |
+| `yudi-tweaks` | 1.5 | 运行时开关和状态页 |
+| `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
 
-The kernel keeps stock defaults. The module applies the selected values at
-boot. le9uo is the exception: the kernel patch enables it by default, and the
-module writes 0 when the toggle is off.
+内核保持 stock 默认值，模块在开机时应用选中的设置。le9uo 是例外：内核补丁
+默认开启，模块在关闭开关时写 0。
 
-| Toggle | Default |
+| 开关 | 默认 |
 | --- | --- |
-| sysctl limits (`max_map_count`, inotify) | on |
-| BBRv3 | on |
-| le9uo | on |
-| zram switch to lz4kd | on |
-| KSM | off |
-| ADIOS scheduler | off |
-| DAMON_RECLAIM | off |
+| sysctl 上限（`max_map_count`、inotify） | 开 |
+| BBRv3 | 开 |
+| le9uo | 开 |
+| zram 切换到 lz4kd | 开 |
+| KSM | 关 |
+| ADIOS 调度器 | 关 |
+| DAMON_RECLAIM | 关 |
 
-CPU limits (`Droidspaces --cpus`) come from the kernel's CFS bandwidth
-support. The WebUI reports the status; there is no module toggle.
+CPU 限制（`Droidspaces --cpus`）来自内核的 CFS 带宽支持，WebUI 只显示状态，
+模块没有对应开关。
 
-Changing the zram algorithm does `swapoff` + `reset` and re-enables swap. The
-module skips the switch when zram swap is in use above a small threshold.
+切换 zram 算法会先 `swapoff` + `reset`，再重新启用 swap；swap 使用量高时跳过。
 
-The WebUI writes `/data/adb/yudi-tweaks.conf`. Changes apply after a reboot.
-KernelSU shows the WebUI when `webroot/index.html` exists.
+WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
+`webroot/index.html` 存在时显示 WebUI。
 
 ## ntsync
 
-Reads `/sys/class/misc/ntsync/dev` and creates the node with the real
-major:minor. The minor is allocated by the kernel and must not be hardcoded.
+从 `/sys/class/misc/ntsync/dev` 读主次设备号创建节点。minor 由内核动态分配，
+不能写死。
 
-## Install
+## 安装
 
 ```sh
 ./scripts/package.sh
 ```
 
-Install `dist/<module>.zip` with the KernelSU app, or use `./scripts/install.sh`
-with adb and a working `su`.
+用 KernelSU 安装 `dist/<module>.zip`；或者在已 root 的设备上运行
+`./scripts/install.sh`（走 adb + su）。
 
-## Verify
+## 验证
 
 ```sh
 cat /proc/sys/vm/max_map_count
@@ -58,26 +55,28 @@ cat /proc/sys/vm/workingset_protection
 cat /sys/block/zram0/comp_algorithm
 su -c 'cat /sys/class/misc/ntsync/dev'
 ls -l /dev/ntsync
-su -c '/data/local/Droidspaces/bin/droidspaces check'
 ```
 
-Expected with the defaults: `1048576`, `524288`, `1024`, `bbr3`, `1`,
-`[lz4kd]`, an ntsync major:minor matching sysfs, and Droidspaces reporting CPU
-limit support.
+默认值下预期：`1048576`、`524288`、`1024`、`bbr3`、`1`、`[lz4kd]`，ntsync 的
+主次设备号与 sysfs 一致。
 
-## Kernel images
+如果设备上装了 Droidspaces，可以再跑
+`su -c '/data/local/Droidspaces/bin/droidspaces check'`，确认 CPU 限制可用；
+没装可以跳过。
 
-The kernel release ships two images with the same kernel:
+## 内核镜像
 
-- `yudi-5.10.272-<date>-ksu.img` — with KernelSU
-- `yudi-5.10.272-<date>-noroot.img` — without root
+内核发布里有两个镜像，内核相同：
 
-Verified on the device: 7298 exported symbols with 0 CRC differences, 355
-`vendor_boot` and 315 `vendor_dlkm` modules with 0 failures, 420 loaded modules,
-NTSync v2 selftest 11/11, futex_waitv 7/7, epoll 63/63.
+- `yudi-5.10.272-<日期>-ksu.img`：带 KernelSU
+- `yudi-5.10.272-<日期>-noroot.img`：不带 root
 
-Source and patches: <https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max>
+2026-10-29 在设备上验证：7298 个导出符号、CRC 差异 0；vendor_boot 355 个、
+vendor_dlkm 315 个模块，失败 0；加载 420 个模块；NTSync 11/11、futex_waitv
+7/7、epoll 63/63。
+
+源码与补丁：<https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max>
 
 ## License
 
-GPL-2.0。See `LICENSE`.
+GPL-2.0，见 `LICENSE`。

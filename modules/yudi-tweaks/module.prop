@@ -1,6 +1,6 @@
 id=yudi-tweaks
-name=Yudi kernel tweaks
+name=Yudi 内核调整
 version=1.5
 versionCode=6
 author=OneFeiFan
-description=Runtime toggles and kernel status for BBRv3, le9uo, zram, KSM, ADIOS and DAMON
+description=运行时开关与内核状态：BBRv3、le9uo、zram、KSM、ADIOS、DAMON
