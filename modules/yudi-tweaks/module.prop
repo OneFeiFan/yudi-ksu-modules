@@ -1,6 +1,6 @@
 id=yudi-tweaks
 name=Yudi 内核调整
-version=1.5
-versionCode=6
+version=1.6
+versionCode=7
 author=OneFeiFan
-description=运行时开关与内核状态：BBRv3、le9uo、zram、KSM、ADIOS、DAMON
+description=运行时开关与内核状态：BBRv3、le9uo、zram、KSM、ADIOS、DAMON、cpuidle governor

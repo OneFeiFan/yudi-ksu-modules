@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.5 | 运行时开关和状态页 |
+| `yudi-tweaks` | 1.6 | 运行时开关和状态页 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -21,6 +21,10 @@
 | KSM | 关 |
 | ADIOS 调度器 | 关 |
 | DAMON_RECLAIM | 关 |
+| cpuidle governor（跟随系统 / TEO / qcom-cpu-lpm） | 跟随系统 |
+
+governor 在 WebUI 保存时立即切换；重启后由模块按配置再应用。选「跟随系统」时模块
+不写 governor，保持厂商默认。
 
 CPU 限制（`Droidspaces --cpus`）来自内核的 CFS 带宽支持，WebUI 只显示状态，
 模块没有对应开关。

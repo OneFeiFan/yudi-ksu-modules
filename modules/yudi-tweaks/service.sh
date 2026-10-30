@@ -21,6 +21,7 @@ ZRAM=$(getval ZRAM); ZRAM=${ZRAM:-1}
 ZRAM_ALGO=$(getval ZRAM_ALGO); ZRAM_ALGO=${ZRAM_ALGO:-lz4kd}
 ZRAM_SIZE=$(getval ZRAM_SIZE); ZRAM_SIZE=${ZRAM_SIZE:-17179869184}
 DAMON=$(getval DAMON); DAMON=${DAMON:-0}
+GOV=$(getval GOV)
 
 if [ "$SYSCTL" = 1 ]; then
 	echo 1048576 > /proc/sys/vm/max_map_count
@@ -60,6 +61,14 @@ if [ "$ADIOS" = 1 ]; then
 		[ -e "/sys/block/$d/queue/scheduler" ] || continue
 		echo adios > "/sys/block/$d/queue/scheduler" 2>/dev/null && log "adios on $d"
 	done
+fi
+
+if [ -n "$GOV" ] && [ -w /sys/devices/system/cpu/cpuidle/current_governor ]; then
+	if grep -qw "$GOV" /sys/devices/system/cpu/cpuidle/available_governors; then
+		echo "$GOV" > /sys/devices/system/cpu/cpuidle/current_governor && log "governor $GOV"
+	else
+		log "governor $GOV not available"
+	fi
 fi
 
 setup_zram() {

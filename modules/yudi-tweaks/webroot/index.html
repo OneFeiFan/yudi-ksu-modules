@@ -158,6 +158,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 430px) {
   h1 { font-size: 26px; }
   .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .status-cell:last-child { grid-column: 1 / -1; }
   .kernel { display: none; }
 }
 </style>
@@ -172,7 +173,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="kernel" id="kernel">读取内核信息…</div>
   </header>
 
-  <p class="lede">除 le9uo 补丁自身默认开启外，内核只保留功能，不强制默认值。下面的开关保存后，在下次开机时由模块应用。</p>
+  <p class="lede">除 le9uo 补丁自身默认开启外，内核只保留功能，不强制默认值。下面的开关保存后，在下次开机时由模块应用；cpuidle governor 例外，保存时立即切换。</p>
 
   <div class="status-grid">
     <div class="status-cell"><div class="status-label">拥塞控制</div><div class="status-value" id="st-cc">—</div></div>
@@ -182,6 +183,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="status-cell"><div class="status-label">sda 调度器</div><div class="status-value" id="st-sched">—</div></div>
     <div class="status-cell"><div class="status-label">CPU 限流</div><div class="status-value" id="st-cfs">—</div></div>
     <div class="status-cell"><div class="status-label">ntsync</div><div class="status-value" id="st-ntsync">—</div></div>
+    <div class="status-cell"><div class="status-label">idle governor</div><div class="status-value" id="st-gov">—</div></div>
     <div class="status-cell"><div class="status-label">模块状态</div><div class="status-value" id="st-bridge">—</div></div>
   </div>
 
@@ -204,6 +206,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <div class="desc">内核已开启 kABI 拆分版 CFS 带宽，Droidspaces 的 --cpus 可用。这是内核能力，不需要模块开关。</div>
         <div class="current" id="cur-cfs"></div>
       </div>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">cpuidle governor</div>
+        <div class="desc">TEO 按定时器事件选择空闲档；跟随系统时保持厂商的 qcom-cpu-lpm。保存后立即切换，重启后按配置应用。</div>
+        <div class="current" id="cur-gov"></div>
+      </div>
+      <select id="GOV">
+        <option value="">跟随系统</option>
+        <option value="teo">TEO</option>
+        <option value="qcom-cpu-lpm">qcom-cpu-lpm</option>
+      </select>
     </div>
     <div class="row">
       <div class="copy">
@@ -281,7 +295,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   </details>
 
   <section>
-    <h2>关于 <span>模块 v1.5</span></h2>
+    <h2>关于 <span>模块 v1.6</span></h2>
     <div class="row">
       <div class="copy">
         <div class="title">内核镜像</div>
@@ -292,7 +306,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="row">
       <div class="copy">
         <div class="title">模块</div>
-        <div class="desc">yudi-tweaks v1.5 管理运行时开关；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
+        <div class="desc">yudi-tweaks v1.6 管理运行时开关（含 cpuidle governor）；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
       </div>
     </div>
   </section>
@@ -308,7 +322,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
-  ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', DAMON: 0
+  ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', DAMON: 0,
+  GOV: ''
 };
 const cfg = Object.assign({}, DEFAULTS);
 const $ = (id) => document.getElementById(id);
@@ -363,6 +378,12 @@ function renderForm() {
   } else {
     $('ZRAM_SIZE').value = size;
   }
+  const gov = String(cfg.GOV || '');
+  if (![...$('GOV').options].some(o => o.value === gov)) {
+    $('GOV').value = '';
+  } else {
+    $('GOV').value = gov;
+  }
 }
 
 function readForm() {
@@ -371,6 +392,7 @@ function readForm() {
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
   cfg.ZRAM_SIZE = $('ZRAM_SIZE').value;
+  cfg.GOV = $('GOV').value;
 }
 
 function shellQuote(value) {
@@ -379,14 +401,19 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'DAMON'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'DAMON', 'GOV'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {
     toast('保存失败：' + (r.stderr || r.stdout || 'unknown error'));
     return;
   }
-  toast('已保存，重启后生效');
+  let applied = true;
+  if (cfg.GOV) {
+    const g = await run("echo " + shellQuote(cfg.GOV) + " > /sys/devices/system/cpu/cpuidle/current_governor");
+    if (g.errno !== 0) applied = false;
+  }
+  toast(applied ? '已保存，重启后生效' : '已保存，但 governor 即时切换失败');
 }
 
 async function load() {
@@ -399,7 +426,7 @@ async function load() {
   if (cfgText.errno === 0 && cfgText.stdout.trim()) setCfgFromText(cfgText.stdout);
   renderForm();
 
-  const info = await run("uname -r; echo '|'; cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null; echo '|'; cat /sys/block/zram0/comp_algorithm 2>/dev/null; echo '|'; cat /proc/sys/vm/workingset_protection 2>/dev/null; echo '|'; cat /sys/kernel/mm/ksm/run 2>/dev/null; echo '|'; grep -H . /sys/block/sda/queue/scheduler 2>/dev/null; echo '|'; if [ -e /dev/cpuctl/cpu.cfs_quota_us ] || [ -e /sys/fs/cgroup/cpu.max ]; then echo 可用; else echo 不可用; fi; echo '|'; cat /sys/class/misc/ntsync/dev 2>/dev/null");
+  const info = await run("uname -r; echo '|'; cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null; echo '|'; cat /sys/block/zram0/comp_algorithm 2>/dev/null; echo '|'; cat /proc/sys/vm/workingset_protection 2>/dev/null; echo '|'; cat /sys/kernel/mm/ksm/run 2>/dev/null; echo '|'; grep -H . /sys/block/sda/queue/scheduler 2>/dev/null; echo '|'; if [ -e /dev/cpuctl/cpu.cfs_quota_us ] || [ -e /sys/fs/cgroup/cpu.max ]; then echo 可用; else echo 不可用; fi; echo '|'; cat /sys/class/misc/ntsync/dev 2>/dev/null; echo '|'; cat /sys/devices/system/cpu/cpuidle/current_governor 2>/dev/null");
   const p = (info.stdout || '').trim().split('|');
   const kernel = (p[0] || '').trim();
   $('kernel').textContent = kernel || 'kernel unknown';
@@ -414,12 +441,14 @@ async function load() {
   $('st-sched').textContent = schedCurrent ? schedCurrent[1] : schedValue;
   $('st-cfs').textContent = (p[6] || '—').trim();
   $('st-ntsync').textContent = (p[7] || '未加载').trim();
+  $('st-gov').textContent = (p[8] || '—').trim();
   $('cur-bbr3').textContent = '当前：' + $('st-cc').textContent;
   $('cur-le9uo').textContent = '当前：' + $('st-le9uo').textContent;
   $('cur-zram').textContent = '当前：' + $('st-zram').textContent;
   $('cur-ksm').textContent = '当前：' + $('st-ksm').textContent;
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
   $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
+  $('cur-gov').textContent = '当前：' + $('st-gov').textContent;
 }
 
 $('save').addEventListener('click', save);
