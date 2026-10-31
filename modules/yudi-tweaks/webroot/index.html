@@ -349,6 +349,43 @@ button.small { padding: 8px 12px; font-size: 12px; }
     </div>
   </section>
 
+  <section>
+    <h2>实验调参 <span>默认全关</span></h2>
+    <p class="note">这些参数不改内核，只改运行时 sysctl / f2fs 设置；打开后重启生效。建议一次只开一项，做 8 小时待机对比。</p>
+    <div class="row">
+      <div class="copy">
+        <div class="title">内存统计间隔</div>
+        <div class="desc">vm.stat_interval 从 1 调到 10，减少统计唤醒；代价是内存统计稍滞后。</div>
+        <div class="current" id="cur-vmstat"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="VM_STAT"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">TCP 空闲后不慢启动</div>
+        <div class="desc">tcp_slow_start_after_idle 设为 0；连接空闲后继续用原拥塞窗口，断续传输更快。</div>
+        <div class="current" id="cur-tcpidle"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="TCP_IDLE"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">TCP Fast Open</div>
+        <div class="desc">tcp_fastopen 设为 3，收发两侧都允许；需要应用支持，个别网络设备可能不兼容。</div>
+        <div class="current" id="cur-tcpfastopen"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="TCP_FASTOPEN"><span></span></label>
+    </div>
+    <div class="row warning">
+      <div class="copy">
+        <div class="title">f2fs 小批量 fsync 阈值</div>
+        <div class="desc">把所有 f2fs 分区的 min_fsync_blocks 调到 20；减少小 fsync 开销，但会影响数据落盘时机，默认关闭。</div>
+        <div class="current" id="cur-f2fs"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="F2FS_FSYNC"><span></span></label>
+    </div>
+  </section>
+
   <details class="advanced">
     <summary>高级选项</summary>
     <p class="note">这些选项有副作用，默认关闭。确认知道后果再打开。</p>
@@ -392,7 +429,7 @@ button.small { padding: 8px 12px; font-size: 12px; }
   </details>
 
   <section>
-    <h2>关于 <span>模块 v1.9</span></h2>
+    <h2>关于 <span>模块 v2.0</span></h2>
     <div class="row">
       <div class="copy">
         <div class="title">内核镜像</div>
@@ -403,7 +440,7 @@ button.small { padding: 8px 12px; font-size: 12px; }
     <div class="row">
       <div class="copy">
         <div class="title">模块</div>
-        <div class="desc">yudi-tweaks v1.9 管理运行时开关（含 cpuidle governor 和 MFZ 白名单）；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
+        <div class="desc">yudi-tweaks v2.0 管理运行时开关（含 cpuidle governor、MFZ 白名单和实验调参）；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
       </div>
     </div>
   </section>
@@ -420,7 +457,7 @@ const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
   ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, MOON_MODS: 0, DAMON: 0,
-  GOV: '', MFZ: 1, MFZ_APPS: ''
+  GOV: '', MFZ: 1, MFZ_APPS: '', VM_STAT: 0, TCP_IDLE: 0, TCP_FASTOPEN: 0, F2FS_FSYNC: 0
 };
 const BASE_APPS = [
   ['com.tencent.tmgp.pubgmhd', '和平精英'],
@@ -542,7 +579,7 @@ function renderApps() {
 }
 
 function renderForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC']) {
     $(key).checked = String(cfg[key]) === '1';
   }
   $('ZRAM_ALGO').value = [...$('ZRAM_ALGO').options].some(o => o.value === cfg.ZRAM_ALGO) ? cfg.ZRAM_ALGO : 'lz4kd';
@@ -561,7 +598,7 @@ function renderForm() {
 }
 
 function readForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC']) {
     cfg[key] = $(key).checked ? 1 : 0;
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
@@ -576,7 +613,7 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {
@@ -637,6 +674,12 @@ async function load() {
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
   $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
   $('cur-gov').textContent = '当前：' + $('st-gov').textContent;
+  const tune = await run("cat /proc/sys/vm/stat_interval 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/min_fsync_blocks\" ]; then cat \"$d/min_fsync_blocks\"; break; fi; done");
+  const t = (tune.stdout || '').split('|');
+  $('cur-vmstat').textContent = '当前：' + ((t[0] || '—').trim());
+  $('cur-tcpidle').textContent = '当前：' + ((t[1] || '—').trim());
+  $('cur-tcpfastopen').textContent = '当前：' + ((t[2] || '—').trim());
+  $('cur-f2fs').textContent = '当前：' + ((t[3] || '—').trim());
   const pkgText = await run('pm list packages -3 2>/dev/null');
   if (pkgText.errno === 0) {
     installedApps = [...new Set(pkgText.stdout.split('\n').map(s => s.trim().replace(/^package:/, '')).filter(p => APP_RE.test(p)))].sort();

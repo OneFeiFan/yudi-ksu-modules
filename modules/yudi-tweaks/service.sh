@@ -25,12 +25,33 @@ ZRAM_FORCE=$(getval ZRAM_FORCE); ZRAM_FORCE=${ZRAM_FORCE:-0}
 MOON_MODS=$(getval MOON_MODS); MOON_MODS=${MOON_MODS:-0}
 DAMON=$(getval DAMON); DAMON=${DAMON:-0}
 GOV=$(getval GOV)
+VM_STAT=$(getval VM_STAT); VM_STAT=${VM_STAT:-0}
+TCP_IDLE=$(getval TCP_IDLE); TCP_IDLE=${TCP_IDLE:-0}
+TCP_FASTOPEN=$(getval TCP_FASTOPEN); TCP_FASTOPEN=${TCP_FASTOPEN:-0}
+F2FS_FSYNC=$(getval F2FS_FSYNC); F2FS_FSYNC=${F2FS_FSYNC:-0}
 
 if [ "$SYSCTL" = 1 ]; then
 	echo 1048576 > /proc/sys/vm/max_map_count
 	echo 524288 > /proc/sys/fs/inotify/max_user_watches
 	echo 1024 > /proc/sys/fs/inotify/max_user_instances
 	log "sysctl applied"
+fi
+
+# 实验调参：全部默认关闭，只在用户打开时覆盖系统值
+if [ "$VM_STAT" = 1 ]; then
+	echo 10 > /proc/sys/vm/stat_interval 2>/dev/null && log "stat_interval=10"
+fi
+if [ "$TCP_IDLE" = 1 ]; then
+	echo 0 > /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null && log "tcp_slow_start_after_idle=0"
+fi
+if [ "$TCP_FASTOPEN" = 1 ]; then
+	echo 3 > /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null && log "tcp_fastopen=3"
+fi
+if [ "$F2FS_FSYNC" = 1 ]; then
+	for d in /sys/fs/f2fs/*; do
+		[ -e "$d/min_fsync_blocks" ] || continue
+		echo 20 > "$d/min_fsync_blocks" 2>/dev/null && log "f2fs ${d##*/} min_fsync_blocks=20"
+	done
 fi
 
 if [ "$BBR3" = 1 ]; then

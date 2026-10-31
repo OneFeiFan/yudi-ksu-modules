@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.9 | 运行时开关、状态页与 MFZ 白名单 |
+| `yudi-tweaks` | 2.0 | 运行时开关、状态页、MFZ 白名单与实验调参 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -25,6 +25,10 @@
 | DAMON_RECLAIM | 关 |
 | cpuidle governor（跟随系统 / TEO / qcom-cpu-lpm） | 跟随系统 |
 | 写入 MFZ 冻结白名单（系统预置 7 个游戏） | 开 |
+| 内存统计间隔（`VM_STAT`） | 关 |
+| TCP 空闲后不慢启动（`TCP_IDLE`） | 关 |
+| TCP Fast Open（`TCP_FASTOPEN`） | 关 |
+| f2fs `min_fsync_blocks`（`F2FS_FSYNC`） | 关 |
 
 governor 在 WebUI 保存时立即切换；重启后由模块按配置再应用。选「跟随系统」时模块
 不写 governor，保持厂商默认。
@@ -60,6 +64,36 @@ moon_look_around、moon_mapped_protect、moon_binder），由 vendor 的
 `/data/system/mfz.xml`，并生成 `/product/etc/mfz.xml` 的模块覆盖（不同的
 mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭「写入白名单」会删除
 两份文件，恢复系统自带的白名单。
+
+## 实验调参（默认全关）
+
+这些参数不改内核，只改运行时 sysctl / f2fs 设置；打开后重启生效。建议一次只开一项，
+做 8 小时待机对比。
+
+| 开关 | 写入 |
+| --- | --- |
+| `VM_STAT` | `vm.stat_interval=10` |
+| `TCP_IDLE` | `net.ipv4.tcp_slow_start_after_idle=0` |
+| `TCP_FASTOPEN` | `net.ipv4.tcp_fastopen=3` |
+| `F2FS_FSYNC` | 所有 f2fs 分区的 `min_fsync_blocks=20` |
+
+验证：
+
+```sh
+cat /proc/sys/vm/stat_interval
+cat /proc/sys/net/ipv4/tcp_slow_start_after_idle
+cat /proc/sys/net/ipv4/tcp_fastopen
+for d in /sys/fs/f2fs/*; do [ -e "$d/min_fsync_blocks" ] && cat "$d/min_fsync_blocks"; done
+```
+
+8 小时待机 A/B：
+
+```sh
+dumpsys batterystats --reset
+# 全关基线：熄屏、拔掉充电，等 8 小时
+dumpsys batterystats --charged | head -60
+# 打开四项、重启，重复一次
+```
 
 WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
 `webroot/index.html` 存在时显示 WebUI。
