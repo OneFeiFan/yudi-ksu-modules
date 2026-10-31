@@ -384,6 +384,46 @@ button.small { padding: 8px 12px; font-size: 12px; }
       </div>
       <label class="switch"><input type="checkbox" id="F2FS_FSYNC"><span></span></label>
     </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">关闭水位提升</div>
+        <div class="desc">vm.watermark_boost_factor 设为 0，避免内存碎片后 kswapd 过度回收。</div>
+        <div class="current" id="cur-wmark"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="VM_WMARK"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">zram 换入不预读</div>
+        <div class="desc">vm.page-cluster 设为 0，减少 swap-in 预读；小随机换入可能稍慢。</div>
+        <div class="current" id="cur-pagecluster"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="VM_PAGECLUSTER"><span></span></label>
+    </div>
+    <div class="row warning">
+      <div class="copy">
+        <div class="title">关闭 sd 设备 IO 统计</div>
+        <div class="desc">sd*/queue/iostats 设为 0；会让 /proc/diskstats 的 IO 统计失准。</div>
+        <div class="current" id="cur-iostats"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="IO_IOSTATS"><span></span></label>
+    </div>
+    <div class="row warning">
+      <div class="copy">
+        <div class="title">f2fs 紧急 GC 间隔</div>
+        <div class="desc">所有 f2fs 分区的 gc_urgent_sleep_time 设为 50ms；更积极回收，可能增加功耗。</div>
+        <div class="current" id="cur-gc"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="F2FS_GC_URGENT"><span></span></label>
+    </div>
+    <div class="row warning">
+      <div class="copy">
+        <div class="title">TCP ECN</div>
+        <div class="desc">tcp_ecn 设为 1，主动协商 ECN；个别路由器或网络设备可能不兼容。</div>
+        <div class="current" id="cur-ecn"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="TCP_ECN"><span></span></label>
+    </div>
   </section>
 
   <details class="advanced">
@@ -457,7 +497,7 @@ const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
   ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, MOON_MODS: 0, DAMON: 0,
-  GOV: '', MFZ: 1, MFZ_APPS: '', VM_STAT: 0, TCP_IDLE: 0, TCP_FASTOPEN: 0, F2FS_FSYNC: 0
+  GOV: '', MFZ: 1, MFZ_APPS: '', VM_STAT: 0, TCP_IDLE: 0, TCP_FASTOPEN: 0, F2FS_FSYNC: 0, VM_WMARK: 0, VM_PAGECLUSTER: 0, IO_IOSTATS: 0, F2FS_GC_URGENT: 0, TCP_ECN: 0
 };
 const BASE_APPS = [
   ['com.tencent.tmgp.pubgmhd', '和平精英'],
@@ -579,7 +619,7 @@ function renderApps() {
 }
 
 function renderForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN']) {
     $(key).checked = String(cfg[key]) === '1';
   }
   $('ZRAM_ALGO').value = [...$('ZRAM_ALGO').options].some(o => o.value === cfg.ZRAM_ALGO) ? cfg.ZRAM_ALGO : 'lz4kd';
@@ -598,7 +638,7 @@ function renderForm() {
 }
 
 function readForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN']) {
     cfg[key] = $(key).checked ? 1 : 0;
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
@@ -613,7 +653,7 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {
@@ -674,12 +714,17 @@ async function load() {
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
   $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
   $('cur-gov').textContent = '当前：' + $('st-gov').textContent;
-  const tune = await run("cat /proc/sys/vm/stat_interval 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/min_fsync_blocks\" ]; then cat \"$d/min_fsync_blocks\"; break; fi; done");
+  const tune = await run("cat /proc/sys/vm/stat_interval 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/min_fsync_blocks\" ]; then cat \"$d/min_fsync_blocks\"; break; fi; done; echo '|'; cat /proc/sys/vm/watermark_boost_factor 2>/dev/null; echo '|'; cat /proc/sys/vm/page-cluster 2>/dev/null; echo '|'; cat /sys/block/sda/queue/iostats 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/gc_urgent_sleep_time\" ]; then cat \"$d/gc_urgent_sleep_time\"; break; fi; done; echo '|'; cat /proc/sys/net/ipv4/tcp_ecn 2>/dev/null");
   const t = (tune.stdout || '').split('|');
   $('cur-vmstat').textContent = '当前：' + ((t[0] || '—').trim());
   $('cur-tcpidle').textContent = '当前：' + ((t[1] || '—').trim());
   $('cur-tcpfastopen').textContent = '当前：' + ((t[2] || '—').trim());
   $('cur-f2fs').textContent = '当前：' + ((t[3] || '—').trim());
+  $('cur-wmark').textContent = '当前：' + ((t[4] || '—').trim());
+  $('cur-pagecluster').textContent = '当前：' + ((t[5] || '—').trim());
+  $('cur-iostats').textContent = '当前：' + ((t[6] || '—').trim());
+  $('cur-gc').textContent = '当前：' + ((t[7] || '—').trim());
+  $('cur-ecn').textContent = '当前：' + ((t[8] || '—').trim());
   const pkgText = await run('pm list packages -3 2>/dev/null');
   if (pkgText.errno === 0) {
     installedApps = [...new Set(pkgText.stdout.split('\n').map(s => s.trim().replace(/^package:/, '')).filter(p => APP_RE.test(p)))].sort();

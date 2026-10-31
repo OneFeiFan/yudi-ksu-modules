@@ -29,6 +29,11 @@ VM_STAT=$(getval VM_STAT); VM_STAT=${VM_STAT:-0}
 TCP_IDLE=$(getval TCP_IDLE); TCP_IDLE=${TCP_IDLE:-0}
 TCP_FASTOPEN=$(getval TCP_FASTOPEN); TCP_FASTOPEN=${TCP_FASTOPEN:-0}
 F2FS_FSYNC=$(getval F2FS_FSYNC); F2FS_FSYNC=${F2FS_FSYNC:-0}
+VM_WMARK=$(getval VM_WMARK); VM_WMARK=${VM_WMARK:-0}
+VM_PAGECLUSTER=$(getval VM_PAGECLUSTER); VM_PAGECLUSTER=${VM_PAGECLUSTER:-0}
+IO_IOSTATS=$(getval IO_IOSTATS); IO_IOSTATS=${IO_IOSTATS:-0}
+F2FS_GC_URGENT=$(getval F2FS_GC_URGENT); F2FS_GC_URGENT=${F2FS_GC_URGENT:-0}
+TCP_ECN=$(getval TCP_ECN); TCP_ECN=${TCP_ECN:-0}
 
 if [ "$SYSCTL" = 1 ]; then
 	echo 1048576 > /proc/sys/vm/max_map_count
@@ -53,6 +58,29 @@ if [ "$F2FS_FSYNC" = 1 ]; then
 		echo 20 > "$d/min_fsync_blocks" 2>/dev/null && log "f2fs ${d##*/} min_fsync_blocks=20"
 	done
 fi
+
+if [ "$VM_WMARK" = 1 ]; then
+	echo 0 > /proc/sys/vm/watermark_boost_factor 2>/dev/null && log "watermark_boost_factor=0"
+fi
+if [ "$VM_PAGECLUSTER" = 1 ]; then
+	echo 0 > /proc/sys/vm/page-cluster 2>/dev/null && log "page-cluster=0"
+fi
+if [ "$IO_IOSTATS" = 1 ]; then
+	for q in /sys/block/sd*/queue/iostats; do
+		[ -e "$q" ] || continue
+		echo 0 > "$q" 2>/dev/null && log "iostats ${q#/sys/block/}=0"
+	done
+fi
+if [ "$F2FS_GC_URGENT" = 1 ]; then
+	for d in /sys/fs/f2fs/*; do
+		[ -e "$d/gc_urgent_sleep_time" ] || continue
+		echo 50 > "$d/gc_urgent_sleep_time" 2>/dev/null && log "f2fs ${d##*/} gc_urgent_sleep_time=50"
+	done
+fi
+if [ "$TCP_ECN" = 1 ]; then
+	echo 1 > /proc/sys/net/ipv4/tcp_ecn 2>/dev/null && log "tcp_ecn=1"
+fi
+
 
 if [ "$BBR3" = 1 ]; then
 	if grep -qw bbr3 /proc/sys/net/ipv4/tcp_available_congestion_control; then

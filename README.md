@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 2.0 | 运行时开关、状态页、MFZ 白名单与实验调参 |
+| `yudi-tweaks` | 2.1 | 运行时开关、状态页、MFZ 白名单与实验调参 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -76,6 +76,11 @@ mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭�
 | `TCP_IDLE` | `net.ipv4.tcp_slow_start_after_idle=0` |
 | `TCP_FASTOPEN` | `net.ipv4.tcp_fastopen=3` |
 | `F2FS_FSYNC` | 所有 f2fs 分区的 `min_fsync_blocks=20` |
+| `VM_WMARK` | `vm.watermark_boost_factor=0` |
+| `VM_PAGECLUSTER` | `vm.page-cluster=0` |
+| `IO_IOSTATS` | 所有 `sd*/queue/iostats=0` |
+| `F2FS_GC_URGENT` | 所有 f2fs 分区的 `gc_urgent_sleep_time=50` |
+| `TCP_ECN` | `net.ipv4.tcp_ecn=1` |
 
 验证：
 
@@ -92,7 +97,7 @@ for d in /sys/fs/f2fs/*; do [ -e "$d/min_fsync_blocks" ] && cat "$d/min_fsync_bl
 dumpsys batterystats --reset
 # 全关基线：熄屏、拔掉充电，等 8 小时
 dumpsys batterystats --charged | head -60
-# 打开四项、重启，重复一次
+# 打开所需项、重启，重复一次
 ```
 
 WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
