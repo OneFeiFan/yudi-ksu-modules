@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.8 | 运行时开关和状态页 |
+| `yudi-tweaks` | 1.9 | 运行时开关、状态页与 MFZ 白名单 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -24,6 +24,7 @@
 | ADIOS 调度器 | 关 |
 | DAMON_RECLAIM | 关 |
 | cpuidle governor（跟随系统 / TEO / qcom-cpu-lpm） | 跟随系统 |
+| 写入 MFZ 冻结白名单（系统预置 7 个游戏） | 开 |
 
 governor 在 WebUI 保存时立即切换；重启后由模块按配置再应用。选「跟随系统」时模块
 不写 governor，保持厂商默认。
@@ -47,6 +48,18 @@ moon_look_around、moon_mapped_protect、moon_binder），由 vendor 的
 `init.qti.kernel.rc` 在开机后期 `insmod`，与内核无关。它们和 le9uo、Kcompressd 的
 目标重叠，默认屏蔽：模块用空文件覆盖这些 `.ko`，让加载失败；覆盖还没生效的那次
 开机，`service.sh` 在开机完成后把已加载的卸载掉。打开「加载月亮内存模块」恢复原样。
+
+## MFZ 冻结白名单
+
+系统在应用进入后台并冻结后，会按占用大小处理白名单里的应用：≥2 GB 压缩、
+≥3 GB 写回 zram、≥4 GB 直接终止。它不是保活开关：普通小应用选中后基本
+没有变化；占用 2–4 GB 的游戏或应用更可能在后台留住，超过 4 GB 仍会被杀。
+
+`/product/etc/mfz.xml` 预置了 7 个游戏，模块始终保留。WebUI 可以勾选已安装的
+第三方应用，也可以手动输入包名；保存时模块把「预置 + 所选」写进
+`/data/system/mfz.xml`，并生成 `/product/etc/mfz.xml` 的模块覆盖（不同的
+mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭「写入白名单」会删除
+两份文件，恢复系统自带的白名单。
 
 WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
 `webroot/index.html` 存在时显示 WebUI。
@@ -74,6 +87,7 @@ cat /proc/sys/fs/inotify/max_user_instances
 cat /proc/sys/net/ipv4/tcp_congestion_control
 cat /proc/sys/vm/workingset_protection
 cat /sys/block/zram0/comp_algorithm
+su -c 'cat /data/system/mfz.xml'
 su -c 'cat /sys/class/misc/ntsync/dev'
 ls -l /dev/ntsync
 ```

@@ -155,6 +155,56 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   transition: opacity 160ms ease, transform 160ms ease;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px 6px; margin-top: 8px; }
+.chip {
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--teal);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 3px 7px;
+  overflow-wrap: anywhere;
+}
+.chip em { margin-left: 4px; color: var(--muted); font-style: normal; }
+.count { margin-left: 6px; color: var(--accent); font: 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 400; }
+.searchwrap { margin-top: 10px; }
+.searchwrap input, .addrow input {
+  width: 100%;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 9px;
+}
+.applist {
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.approw {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.approw:last-child { border-bottom: 0; }
+.approw input { width: 16px; height: 16px; flex: none; margin: 0; accent-color: var(--teal); }
+.approw .pkg {
+  min-width: 0;
+  font: 12px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.approw .tag { flex: none; margin-left: auto; color: var(--warn); font: 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.approw[hidden] { display: none; }
+.empty { padding: 14px 10px; text-align: center; color: var(--muted); font-size: 12.5px; }
+.addrow { display: flex; gap: 8px; margin-top: 8px; }
+.addrow input { flex: 1; min-width: 0; }
+button.small { padding: 8px 12px; font-size: 12px; }
 @media (max-width: 430px) {
   h1 { font-size: 26px; }
   .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -268,6 +318,37 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </div>
   </section>
 
+  <section>
+    <h2>内存冻结白名单 <span>MFZ</span></h2>
+    <div class="row">
+      <div class="copy">
+        <div class="title">写入白名单</div>
+        <div class="desc">把选中的应用加入系统冻结白名单，系统预置的 7 个游戏始终保留。这不是保活开关：冻结后按占用分档——≥2 GB 压缩、≥3 GB 写回 zram、≥4 GB 直接终止。普通小应用选中后基本没有变化；占用 2–4 GB 的游戏或应用更可能在后台留住，超过 4 GB 仍会被杀。</div>
+        <div class="current" id="cur-mfz"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="MFZ"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">系统预置</div>
+        <div class="desc">来自 /product/etc/mfz.xml，模块始终保留。</div>
+        <div class="chips" id="mfz-base"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="copy">
+        <div class="title">额外应用<span class="count" id="mfz-count"></span></div>
+        <div class="desc">勾选已安装的第三方应用，保存后写入白名单，重启后由系统读取。列表显示包名；不在列表里的可以手动添加。</div>
+        <div class="searchwrap"><input type="search" id="mfz-search" placeholder="搜索包名"></div>
+        <div class="applist" id="mfz-apps"><div class="empty">读取应用列表…</div></div>
+        <div class="addrow">
+          <input type="text" id="mfz-manual" placeholder="手动添加包名" spellcheck="false" autocapitalize="off">
+          <button class="secondary small" id="mfz-add">添加</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <details class="advanced">
     <summary>高级选项</summary>
     <p class="note">这些选项有副作用，默认关闭。确认知道后果再打开。</p>
@@ -311,7 +392,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   </details>
 
   <section>
-    <h2>关于 <span>模块 v1.8</span></h2>
+    <h2>关于 <span>模块 v1.9</span></h2>
     <div class="row">
       <div class="copy">
         <div class="title">内核镜像</div>
@@ -322,7 +403,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="row">
       <div class="copy">
         <div class="title">模块</div>
-        <div class="desc">yudi-tweaks v1.6 管理运行时开关（含 cpuidle governor）；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
+        <div class="desc">yudi-tweaks v1.9 管理运行时开关（含 cpuidle governor 和 MFZ 白名单）；ntsync v1.1 创建 /dev/ntsync。配置写入 /data/adb/yudi-tweaks.conf，重启后生效。</div>
       </div>
     </div>
   </section>
@@ -339,8 +420,21 @@ const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
   ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, MOON_MODS: 0, DAMON: 0,
-  GOV: ''
+  GOV: '', MFZ: 1, MFZ_APPS: ''
 };
+const BASE_APPS = [
+  ['com.tencent.tmgp.pubgmhd', '和平精英'],
+  ['com.tencent.tmgp.sgame', '王者荣耀'],
+  ['com.miHoYo.Yuanshen', '原神（官服）'],
+  ['com.miHoYo.ys.mi', '原神（小米）'],
+  ['com.tencent.lolm', '英雄联盟手游'],
+  ['com.miHoYo.ys.bilibili', '原神（B站）'],
+  ['com.tencent.jkchess', '金铲铲之战']
+];
+const APP_RE = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$/;
+const BASE_SET = new Set(BASE_APPS.map(([pkg]) => pkg));
+let installedApps = [];
+let selectedApps = new Set();
 const cfg = Object.assign({}, DEFAULTS);
 const $ = (id) => document.getElementById(id);
 let bridgeReady = typeof window.ksu !== 'undefined';
@@ -383,8 +477,72 @@ function setCfgFromText(text) {
   }
 }
 
+function renderBase() {
+  const box = $('mfz-base');
+  for (const [pkg, name] of BASE_APPS) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = name;
+    const code = document.createElement('em');
+    code.textContent = pkg;
+    chip.appendChild(code);
+    box.appendChild(chip);
+  }
+}
+
+function updateCount() {
+  $('mfz-count').textContent = selectedApps.size ? '已选 ' + selectedApps.size + ' 个' : '';
+}
+
+function renderApps() {
+  const box = $('mfz-apps');
+  box.textContent = '';
+  updateCount();
+  if (!bridgeReady) {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.textContent = '不在 KernelSU WebUI 中，无法读取已安装应用';
+    box.appendChild(d);
+    return;
+  }
+  const q = ($('mfz-search').value || '').trim().toLowerCase();
+  const installed = new Set(installedApps);
+  const rows = [
+    ...[...selectedApps].filter(p => !installed.has(p) && !BASE_SET.has(p)).map(p => ({ pkg: p, ok: false })),
+    ...installedApps.filter(p => !BASE_SET.has(p)).map(p => ({ pkg: p, ok: true }))
+  ].sort((a, b) => (selectedApps.has(b.pkg) ? 1 : 0) - (selectedApps.has(a.pkg) ? 1 : 0) || a.pkg.localeCompare(b.pkg));
+  let shown = 0;
+  for (const row of rows) {
+    if (q && !row.pkg.toLowerCase().includes(q)) continue;
+    const label = document.createElement('label');
+    label.className = 'approw';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = row.pkg;
+    cb.checked = selectedApps.has(row.pkg);
+    const pkg = document.createElement('span');
+    pkg.className = 'pkg';
+    pkg.textContent = row.pkg;
+    label.append(cb, pkg);
+    if (!row.ok) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '未安装';
+      label.appendChild(tag);
+    }
+    box.appendChild(label);
+    shown++;
+  }
+  if (!shown) {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.textContent = q ? '没有匹配的应用' : '没有可添加的第三方应用';
+    box.appendChild(d);
+  }
+}
+
 function renderForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ']) {
     $(key).checked = String(cfg[key]) === '1';
   }
   $('ZRAM_ALGO').value = [...$('ZRAM_ALGO').options].some(o => o.value === cfg.ZRAM_ALGO) ? cfg.ZRAM_ALGO : 'lz4kd';
@@ -403,12 +561,13 @@ function renderForm() {
 }
 
 function readForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ']) {
     cfg[key] = $(key).checked ? 1 : 0;
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
   cfg.ZRAM_SIZE = $('ZRAM_SIZE').value;
   cfg.GOV = $('GOV').value;
+  cfg.MFZ_APPS = [...selectedApps].sort().join(',');
 }
 
 function shellQuote(value) {
@@ -417,7 +576,7 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {
@@ -425,22 +584,35 @@ async function save() {
     return;
   }
   let applied = true;
+  let why = '';
   if (cfg.GOV) {
     const g = await run("echo " + shellQuote(cfg.GOV) + " > /sys/devices/system/cpu/cpuidle/current_governor");
-    if (g.errno !== 0) applied = false;
+    if (g.errno !== 0) {
+      applied = false;
+      why = 'governor 即时切换失败';
+    }
   }
-  toast(applied ? '已保存，重启后生效' : '已保存，但 governor 即时切换失败');
+  const m = await run("sh /data/adb/modules/yudi-tweaks/mfz_conf.sh /data/adb/modules/yudi-tweaks");
+  if (m.errno !== 0) {
+    applied = false;
+    why = why ? why + '，白名单更新失败' : '白名单更新失败';
+  }
+  toast(applied ? '已保存，重启后生效' : '已保存，但' + why);
 }
 
 async function load() {
   $('st-bridge').textContent = bridgeReady ? 'WebUI 可用' : '不在 KernelSU WebUI 中';
   if (!bridgeReady) {
     renderForm();
+    selectedApps = new Set(String(cfg.MFZ_APPS || '').split(',').map(s => s.trim()).filter(p => APP_RE.test(p) && !BASE_SET.has(p)));
+    renderApps();
+    $('cur-mfz').textContent = '当前：未知（不在 WebUI 中）';
     return;
   }
   const cfgText = await run('cat ' + CONFIG + ' 2>/dev/null');
   if (cfgText.errno === 0 && cfgText.stdout.trim()) setCfgFromText(cfgText.stdout);
   renderForm();
+  selectedApps = new Set(String(cfg.MFZ_APPS || '').split(',').map(s => s.trim()).filter(p => APP_RE.test(p) && !BASE_SET.has(p)));
 
   const info = await run("uname -r; echo '|'; cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null; echo '|'; cat /sys/block/zram0/comp_algorithm 2>/dev/null; echo '|'; cat /proc/sys/vm/workingset_protection 2>/dev/null; echo '|'; cat /sys/kernel/mm/ksm/run 2>/dev/null; echo '|'; grep -H . /sys/block/sda/queue/scheduler 2>/dev/null; echo '|'; if [ -e /dev/cpuctl/cpu.cfs_quota_us ] || [ -e /sys/fs/cgroup/cpu.max ]; then echo 可用; else echo 不可用; fi; echo '|'; cat /sys/class/misc/ntsync/dev 2>/dev/null; echo '|'; cat /sys/devices/system/cpu/cpuidle/current_governor 2>/dev/null");
   const p = (info.stdout || '').trim().split('|');
@@ -465,14 +637,49 @@ async function load() {
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
   $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
   $('cur-gov').textContent = '当前：' + $('st-gov').textContent;
+  const pkgText = await run('pm list packages -3 2>/dev/null');
+  if (pkgText.errno === 0) {
+    installedApps = [...new Set(pkgText.stdout.split('\n').map(s => s.trim().replace(/^package:/, '')).filter(p => APP_RE.test(p)))].sort();
+  }
+  renderApps();
+  $('cur-mfz').textContent = String(cfg.MFZ) === '1'
+    ? '当前：已启用，系统预置 7 个' + (selectedApps.size ? '，额外 ' + selectedApps.size + ' 个' : '')
+    : '当前：未启用，使用系统白名单';
 }
 
 $('save').addEventListener('click', save);
+$('mfz-search').addEventListener('input', renderApps);
+$('mfz-apps').addEventListener('change', (e) => {
+  const cb = e.target.closest('input[type="checkbox"]');
+  if (!cb) return;
+  if (cb.checked) selectedApps.add(cb.value); else selectedApps.delete(cb.value);
+  updateCount();
+});
+$('mfz-add').addEventListener('click', () => {
+  const input = $('mfz-manual');
+  const pkg = input.value.trim();
+  if (!APP_RE.test(pkg)) {
+    toast('包名格式不对');
+    return;
+  }
+  if (BASE_SET.has(pkg)) {
+    toast('系统预置已包含这个包');
+    return;
+  }
+  selectedApps.add(pkg);
+  input.value = '';
+  renderApps();
+  toast('已加入，保存后生效');
+});
+$('mfz-manual').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('mfz-add').click();
+});
 $('reboot').addEventListener('click', async () => {
   if (!confirm('现在重启设备？')) return;
   const r = await run('reboot');
   if (r.errno !== 0) toast('重启失败：' + (r.stderr || '请手动重启'));
 });
+renderBase();
 load();
 </script>
 </body>

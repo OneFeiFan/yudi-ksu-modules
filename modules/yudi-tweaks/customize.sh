@@ -9,3 +9,10 @@ sh "$MODPATH/moon_block.sh" "$MODPATH"
 if [ -d "$MODPATH/system/vendor/etc/moon_modules" ]; then
 	ui_print "- 将屏蔽 /vendor/etc/moon_modules 下的 $(ls "$MODPATH/system/vendor/etc/moon_modules" | wc -l) 个月亮内存模块"
 fi
+# 安装时就生成 MFZ 白名单和 /product 覆盖，保证第一次开机就生效
+sh "$MODPATH/mfz_conf.sh" "$MODPATH"
+if [ -f "$MODPATH/system/product/etc/mfz.xml" ]; then
+	ui_print "- 已生成 MFZ 白名单（系统预置 7 个游戏 + 用户选择）"
+else
+	ui_print "- MFZ 白名单未启用"
+fi

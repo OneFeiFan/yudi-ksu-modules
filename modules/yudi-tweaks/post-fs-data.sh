@@ -4,3 +4,5 @@ MODDIR=${0%/*}
 sh "$MODDIR/zram_conf.sh" "$MODDIR"
 # 屏蔽移植包里的月亮内存模块（MOON_MODS=1 时不屏蔽）
 sh "$MODDIR/moon_block.sh" "$MODDIR"
+# 生成 MFZ 冻结白名单（系统预置游戏 + WebUI 选中的应用）
+sh "$MODDIR/mfz_conf.sh" "$MODDIR"
