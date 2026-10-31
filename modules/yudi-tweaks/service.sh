@@ -34,6 +34,7 @@ VM_PAGECLUSTER=$(getval VM_PAGECLUSTER); VM_PAGECLUSTER=${VM_PAGECLUSTER:-0}
 IO_IOSTATS=$(getval IO_IOSTATS); IO_IOSTATS=${IO_IOSTATS:-0}
 F2FS_GC_URGENT=$(getval F2FS_GC_URGENT); F2FS_GC_URGENT=${F2FS_GC_URGENT:-0}
 TCP_ECN=$(getval TCP_ECN); TCP_ECN=${TCP_ECN:-0}
+RCU_LAZY=$(getval RCU_LAZY); RCU_LAZY=${RCU_LAZY:-0}
 
 if [ "$SYSCTL" = 1 ]; then
 	echo 1048576 > /proc/sys/vm/max_map_count
@@ -79,6 +80,14 @@ if [ "$F2FS_GC_URGENT" = 1 ]; then
 fi
 if [ "$TCP_ECN" = 1 ]; then
 	echo 1 > /proc/sys/net/ipv4/tcp_ecn 2>/dev/null && log "tcp_ecn=1"
+fi
+
+# RCU 惰性回调：内核参数可写，开关立即生效；关闭时只停止产生新的惰性回调
+RCU_LAZY_PARAM=/sys/module/rcutree/parameters/enable_rcu_lazy
+if [ -e "$RCU_LAZY_PARAM" ]; then
+	echo "$RCU_LAZY" > "$RCU_LAZY_PARAM" 2>/dev/null && log "rcu_lazy=$RCU_LAZY"
+else
+	[ "$RCU_LAZY" = 1 ] && log "rcu_lazy: kernel parameter not present"
 fi
 
 

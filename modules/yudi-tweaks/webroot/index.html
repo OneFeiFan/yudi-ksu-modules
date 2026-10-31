@@ -424,6 +424,14 @@ button.small { padding: 8px 12px; font-size: 12px; }
       </div>
       <label class="switch"><input type="checkbox" id="TCP_ECN"><span></span></label>
     </div>
+    <div class="row warning">
+      <div class="copy">
+        <div class="title">RCU 惰性回调（实验性）</div>
+        <div class="desc">rcutree.enable_rcu_lazy 设为 1，空闲时合并 RCU 回调以省电；需要 rcu_nocbs 已卸载回调。可随时关闭。</div>
+        <div class="current" id="cur-rculazy"></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="RCU_LAZY"><span></span></label>
+    </div>
   </section>
 
   <details class="advanced">
@@ -497,7 +505,7 @@ const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
   ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, MOON_MODS: 0, DAMON: 0,
-  GOV: '', MFZ: 1, MFZ_APPS: '', VM_STAT: 0, TCP_IDLE: 0, TCP_FASTOPEN: 0, F2FS_FSYNC: 0, VM_WMARK: 0, VM_PAGECLUSTER: 0, IO_IOSTATS: 0, F2FS_GC_URGENT: 0, TCP_ECN: 0
+  GOV: '', MFZ: 1, MFZ_APPS: '', VM_STAT: 0, TCP_IDLE: 0, TCP_FASTOPEN: 0, F2FS_FSYNC: 0, VM_WMARK: 0, VM_PAGECLUSTER: 0, IO_IOSTATS: 0, F2FS_GC_URGENT: 0, TCP_ECN: 0, RCU_LAZY: 0
 };
 const BASE_APPS = [
   ['com.tencent.tmgp.pubgmhd', '和平精英'],
@@ -619,7 +627,7 @@ function renderApps() {
 }
 
 function renderForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN', 'RCU_LAZY']) {
     $(key).checked = String(cfg[key]) === '1';
   }
   $('ZRAM_ALGO').value = [...$('ZRAM_ALGO').options].some(o => o.value === cfg.ZRAM_ALGO) ? cfg.ZRAM_ALGO : 'lz4kd';
@@ -638,7 +646,7 @@ function renderForm() {
 }
 
 function readForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'MFZ', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN', 'RCU_LAZY']) {
     cfg[key] = $(key).checked ? 1 : 0;
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
@@ -653,7 +661,7 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV', 'MFZ', 'MFZ_APPS', 'VM_STAT', 'TCP_IDLE', 'TCP_FASTOPEN', 'F2FS_FSYNC', 'VM_WMARK', 'VM_PAGECLUSTER', 'IO_IOSTATS', 'F2FS_GC_URGENT', 'TCP_ECN', 'RCU_LAZY'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {
@@ -669,6 +677,8 @@ async function save() {
       why = 'governor 即时切换失败';
     }
   }
+  const rcuVal = String(cfg.RCU_LAZY) === '1' ? '1' : '0';
+  await run("[ -e /sys/module/rcutree/parameters/enable_rcu_lazy ] && echo " + rcuVal + " > /sys/module/rcutree/parameters/enable_rcu_lazy || true");
   const m = await run("sh /data/adb/modules/yudi-tweaks/mfz_conf.sh /data/adb/modules/yudi-tweaks");
   if (m.errno !== 0) {
     applied = false;
@@ -714,7 +724,7 @@ async function load() {
   $('cur-adios').textContent = '当前：' + $('st-sched').textContent;
   $('cur-cfs').textContent = '当前：' + $('st-cfs').textContent;
   $('cur-gov').textContent = '当前：' + $('st-gov').textContent;
-  const tune = await run("cat /proc/sys/vm/stat_interval 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/min_fsync_blocks\" ]; then cat \"$d/min_fsync_blocks\"; break; fi; done; echo '|'; cat /proc/sys/vm/watermark_boost_factor 2>/dev/null; echo '|'; cat /proc/sys/vm/page-cluster 2>/dev/null; echo '|'; cat /sys/block/sda/queue/iostats 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/gc_urgent_sleep_time\" ]; then cat \"$d/gc_urgent_sleep_time\"; break; fi; done; echo '|'; cat /proc/sys/net/ipv4/tcp_ecn 2>/dev/null");
+  const tune = await run("cat /proc/sys/vm/stat_interval 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_slow_start_after_idle 2>/dev/null; echo '|'; cat /proc/sys/net/ipv4/tcp_fastopen 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/min_fsync_blocks\" ]; then cat \"$d/min_fsync_blocks\"; break; fi; done; echo '|'; cat /proc/sys/vm/watermark_boost_factor 2>/dev/null; echo '|'; cat /proc/sys/vm/page-cluster 2>/dev/null; echo '|'; cat /sys/block/sda/queue/iostats 2>/dev/null; echo '|'; for d in /sys/fs/f2fs/*; do if [ -e \"$d/gc_urgent_sleep_time\" ]; then cat \"$d/gc_urgent_sleep_time\"; break; fi; done; echo '|'; cat /proc/sys/net/ipv4/tcp_ecn 2>/dev/null; echo '|'; cat /sys/module/rcutree/parameters/enable_rcu_lazy 2>/dev/null");
   const t = (tune.stdout || '').split('|');
   $('cur-vmstat').textContent = '当前：' + ((t[0] || '—').trim());
   $('cur-tcpidle').textContent = '当前：' + ((t[1] || '—').trim());
@@ -725,6 +735,8 @@ async function load() {
   $('cur-iostats').textContent = '当前：' + ((t[6] || '—').trim());
   $('cur-gc').textContent = '当前：' + ((t[7] || '—').trim());
   $('cur-ecn').textContent = '当前：' + ((t[8] || '—').trim());
+  const rcuRaw = (t[9] || '').trim();
+  $('cur-rculazy').textContent = '当前：' + (rcuRaw === 'Y' ? '已开启' : rcuRaw === 'N' ? '已关闭' : '—');
   const pkgText = await run('pm list packages -3 2>/dev/null');
   if (pkgText.errno === 0) {
     installedApps = [...new Set(pkgText.stdout.split('\n').map(s => s.trim().replace(/^package:/, '')).filter(p => APP_RE.test(p)))].sort();

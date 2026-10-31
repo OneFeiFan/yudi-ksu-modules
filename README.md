@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 2.1 | 运行时开关、状态页、MFZ 白名单与实验调参 |
+| `yudi-tweaks` | 2.2 | 运行时开关、状态页、MFZ 白名单与实验调参 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -81,6 +81,7 @@ mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭�
 | `IO_IOSTATS` | 所有 `sd*/queue/iostats=0` |
 | `F2FS_GC_URGENT` | 所有 f2fs 分区的 `gc_urgent_sleep_time=50` |
 | `TCP_ECN` | `net.ipv4.tcp_ecn=1` |
+| `RCU_LAZY` | `rcutree.enable_rcu_lazy=1`（实验性，内核支持时立即生效） |
 
 验证：
 
@@ -88,6 +89,7 @@ mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭�
 cat /proc/sys/vm/stat_interval
 cat /proc/sys/net/ipv4/tcp_slow_start_after_idle
 cat /proc/sys/net/ipv4/tcp_fastopen
+cat /sys/module/rcutree/parameters/enable_rcu_lazy
 for d in /sys/fs/f2fs/*; do [ -e "$d/min_fsync_blocks" ] && cat "$d/min_fsync_blocks"; done
 ```
 
@@ -100,7 +102,8 @@ dumpsys batterystats --charged | head -60
 # 打开所需项、重启，重复一次
 ```
 
-WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
+WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效；`RCU_LAZY` 例外，
+保存后会立即写入内核参数，方便做 A/B 对比。KernelSU 在
 `webroot/index.html` 存在时显示 WebUI。
 
 ## ntsync
