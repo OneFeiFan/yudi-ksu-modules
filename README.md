@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.7 | 运行时开关和状态页 |
+| `yudi-tweaks` | 1.8 | 运行时开关和状态页 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -19,6 +19,7 @@
 | le9uo | 开 |
 | zram 使用选定算法（默认 lz4kd） | 开 |
 | 强制重新初始化 zram（高级） | 关 |
+| 加载月亮内存模块（高级） | 关（默认屏蔽） |
 | KSM | 关 |
 | ADIOS 调度器 | 关 |
 | DAMON_RECLAIM | 关 |
@@ -40,6 +41,12 @@ PerfInit 于是直接按该算法初始化，写回设备保留。算法必须�
 若覆盖没有生效，可在高级选项打开「强制重新初始化 zram」：模块会 `swapoff` +
 `reset`，在设置容量之前恢复原来的写回设备和写回额度，沿用系统设的容量；swap 已用
 超过 64 MB 时跳过。
+
+移植包在 `/vendor/etc/moon_modules/` 带了 4 个闭源内存模块（moon_kshrink_lruvecd、
+moon_look_around、moon_mapped_protect、moon_binder），由 vendor 的
+`init.qti.kernel.rc` 在开机后期 `insmod`，与内核无关。它们和 le9uo、Kcompressd 的
+目标重叠，默认屏蔽：模块用空文件覆盖这些 `.ko`，让加载失败；覆盖还没生效的那次
+开机，`service.sh` 在开机完成后把已加载的卸载掉。打开「加载月亮内存模块」恢复原样。
 
 WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
 `webroot/index.html` 存在时显示 WebUI。

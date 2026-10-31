@@ -289,6 +289,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </div>
     <div class="row warning">
       <div class="copy">
+        <div class="title">加载月亮内存模块</div>
+        <div class="desc">移植包在 /vendor/etc/moon_modules 里带了 4 个闭源模块（异步回收、邻近页检查、共享页保护、binder），由 vendor 开机脚本加载，和 le9uo、Kcompressd 目标重叠。默认关闭：用空文件覆盖阻止加载，已加载的在开机完成后卸载。重启后生效。</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="MOON_MODS"><span></span></label>
+    </div>
+    <div class="row warning">
+      <div class="copy">
         <div class="title">强制重新初始化 zram</div>
         <div class="desc">改写配置没有生效时，开机后 swapoff + reset 重新初始化；会先记下并恢复写回设备和写回额度，沿用系统设的容量。swap 已用超过 64 MB 时跳过。</div>
       </div>
@@ -304,7 +311,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   </details>
 
   <section>
-    <h2>关于 <span>模块 v1.7</span></h2>
+    <h2>关于 <span>模块 v1.8</span></h2>
     <div class="row">
       <div class="copy">
         <div class="title">内核镜像</div>
@@ -331,7 +338,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 const CONFIG = '/data/adb/yudi-tweaks.conf';
 const DEFAULTS = {
   SYSCTL: 1, BBR3: 1, LE9UO: 1, KSM: 0, ADIOS: 0,
-  ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, DAMON: 0,
+  ZRAM: 1, ZRAM_ALGO: 'lz4kd', ZRAM_SIZE: '17179869184', ZRAM_FORCE: 0, MOON_MODS: 0, DAMON: 0,
   GOV: ''
 };
 const cfg = Object.assign({}, DEFAULTS);
@@ -377,7 +384,7 @@ function setCfgFromText(text) {
 }
 
 function renderForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'DAMON']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON']) {
     $(key).checked = String(cfg[key]) === '1';
   }
   $('ZRAM_ALGO').value = [...$('ZRAM_ALGO').options].some(o => o.value === cfg.ZRAM_ALGO) ? cfg.ZRAM_ALGO : 'lz4kd';
@@ -396,7 +403,7 @@ function renderForm() {
 }
 
 function readForm() {
-  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'DAMON']) {
+  for (const key of ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON']) {
     cfg[key] = $(key).checked ? 1 : 0;
   }
   cfg.ZRAM_ALGO = $('ZRAM_ALGO').value;
@@ -410,7 +417,7 @@ function shellQuote(value) {
 
 async function save() {
   readForm();
-  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'DAMON', 'GOV'];
+  const keys = ['SYSCTL', 'BBR3', 'LE9UO', 'KSM', 'ADIOS', 'ZRAM', 'ZRAM_ALGO', 'ZRAM_SIZE', 'ZRAM_FORCE', 'MOON_MODS', 'DAMON', 'GOV'];
   const args = keys.map(k => shellQuote(k + '=' + cfg[k])).join(' ');
   const r = await run("printf '%s\\n' " + args + " > " + CONFIG);
   if (r.errno !== 0) {

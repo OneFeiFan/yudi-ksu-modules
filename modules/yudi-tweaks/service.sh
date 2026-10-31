@@ -22,6 +22,7 @@ ZRAM=$(getval ZRAM); ZRAM=${ZRAM:-1}
 ZRAM_ALGO=$(getval ZRAM_ALGO); ZRAM_ALGO=${ZRAM_ALGO:-lz4kd}
 ZRAM_SIZE=$(getval ZRAM_SIZE); ZRAM_SIZE=${ZRAM_SIZE:-17179869184}
 ZRAM_FORCE=$(getval ZRAM_FORCE); ZRAM_FORCE=${ZRAM_FORCE:-0}
+MOON_MODS=$(getval MOON_MODS); MOON_MODS=${MOON_MODS:-0}
 DAMON=$(getval DAMON); DAMON=${DAMON:-0}
 GOV=$(getval GOV)
 
@@ -137,8 +138,22 @@ if [ "$ZRAM" = 1 ] && [ -e "$ZRAM_SYS/comp_algorithm" ]; then
 	esac
 fi
 
+# 月亮内存模块：正常情况下已被空文件覆盖、加载不了。覆盖没生效时（例如刚装模块
+# 的那次开机），等它们在开机后期加载完再卸载。下次开机由覆盖文件直接阻止。
+if [ "$MOON_MODS" != 1 ]; then
+	(
+		i=0
+		while [ "$(getprop sys.boot_completed)" != 1 ] && [ $i -lt 180 ]; do sleep 2; i=$((i + 2)); done
+		sleep 15
+		for m in $(awk '$1 ~ /^moon_/ {print $1}' /proc/modules 2>/dev/null); do
+			if rmmod "$m" 2>/dev/null; then log "unloaded $m"; else log "rmmod $m failed"; fi
+		done
+	) &
+fi
+
 # 为下次开机更新 perfinit.conf 覆盖（WebUI 改了算法或开关后生效）
 sh "$MODDIR/zram_conf.sh" "$MODDIR"
+sh "$MODDIR/moon_block.sh" "$MODDIR"
 
 if [ "$DAMON" = 1 ] && [ -e /sys/module/damon_reclaim/parameters/enabled ]; then
 	echo 100 > /sys/module/damon_reclaim/parameters/wmarks_high
