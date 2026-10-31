@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 1.6 | 运行时开关和状态页 |
+| `yudi-tweaks` | 1.7 | 运行时开关和状态页 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -17,7 +17,8 @@
 | sysctl 上限（`max_map_count`、inotify） | 开 |
 | BBRv3 | 开 |
 | le9uo | 开 |
-| zram 切换到 lz4kd | 开 |
+| zram 使用选定算法（默认 lz4kd） | 开 |
+| 强制重新初始化 zram（高级） | 关 |
 | KSM | 关 |
 | ADIOS 调度器 | 关 |
 | DAMON_RECLAIM | 关 |
@@ -29,7 +30,16 @@ governor 在 WebUI 保存时立即切换；重启后由模块按配置再应用�
 CPU 限制（`Droidspaces --cpus`）来自内核的 CFS 带宽支持，WebUI 只显示状态，
 模块没有对应开关。
 
-切换 zram 算法会先 `swapoff` + `reset`，再重新启用 swap；swap 使用量高时跳过。
+zram 算法不再靠开机后重置切换。小米的 PerfInit（`/system_ext/xbin/system_perf_init`）
+在 `load-bpf-programs` 阶段读取 `/system_ext/etc/perfinit.conf` 的 `comp_algo`
+初始化 zram，并在设置容量前挂上内存扩展（ExtM）的写回设备。模块在安装时和每次
+post-fs-data 阶段复制这份配置，只把 `comp_algo` 换成选定的算法，以无系统方式覆盖；
+PerfInit 于是直接按该算法初始化，写回设备保留。算法必须已注册在 `/proc/crypto`，
+否则不覆盖。开机后 `service.sh` 只核对并记录算法、容量和写回设备。
+
+若覆盖没有生效，可在高级选项打开「强制重新初始化 zram」：模块会 `swapoff` +
+`reset`，在设置容量之前恢复原来的写回设备和写回额度，沿用系统设的容量；swap 已用
+超过 64 MB 时跳过。
 
 WebUI 写入 `/data/adb/yudi-tweaks.conf`，重启后生效。KernelSU 在
 `webroot/index.html` 存在时显示 WebUI。

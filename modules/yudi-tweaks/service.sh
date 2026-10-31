@@ -1,5 +1,6 @@
 #!/system/bin/sh
 
+MODDIR=${0%/*}
 CFG=/data/adb/yudi-tweaks.conf
 LOG=/data/adb/yudi-tweaks.log
 ZRAM_DEV=/dev/block/zram0
@@ -20,6 +21,7 @@ ADIOS=$(getval ADIOS); ADIOS=${ADIOS:-0}
 ZRAM=$(getval ZRAM); ZRAM=${ZRAM:-1}
 ZRAM_ALGO=$(getval ZRAM_ALGO); ZRAM_ALGO=${ZRAM_ALGO:-lz4kd}
 ZRAM_SIZE=$(getval ZRAM_SIZE); ZRAM_SIZE=${ZRAM_SIZE:-17179869184}
+ZRAM_FORCE=$(getval ZRAM_FORCE); ZRAM_FORCE=${ZRAM_FORCE:-0}
 DAMON=$(getval DAMON); DAMON=${DAMON:-0}
 GOV=$(getval GOV)
 
@@ -71,43 +73,72 @@ if [ -n "$GOV" ] && [ -w /sys/devices/system/cpu/cpuidle/current_governor ]; the
 	fi
 fi
 
-setup_zram() {
+has_algo() {
+	grep -qE "^name[[:space:]]*: $1\$" /proc/crypto 2>/dev/null
+}
+
+zram_state() {
+	echo "algo=$(sed -n 's/.*\[\([^]]*\)\].*/\1/p' "$ZRAM_SYS/comp_algorithm") disksize=$(cat "$ZRAM_SYS/disksize") backing=$(cat "$ZRAM_SYS/backing_dev" 2>/dev/null || echo n/a)"
+}
+
+# 强制重新初始化：沿用系统设好的容量，并在设容量之前恢复 ExtM 的写回设备
+reinit_zram() {
 	algo=$1
-	if ! grep -qw "$algo" "$ZRAM_SYS/comp_algorithm" 2>/dev/null; then
-		algo=lz4
-	fi
+	size=$(cat "$ZRAM_SYS/disksize")
+	[ "$size" -gt 0 ] 2>/dev/null || size=$ZRAM_SIZE
+	bdev=$(cat "$ZRAM_SYS/backing_dev" 2>/dev/null)
+	wle=$(cat "$ZRAM_SYS/writeback_limit_enable" 2>/dev/null)
+	wl=$(cat "$ZRAM_SYS/writeback_limit" 2>/dev/null)
+	swapoff "$ZRAM_DEV" 2>/dev/null
+	echo 1 > "$ZRAM_SYS/reset" || return 1
 	echo "$algo" > "$ZRAM_SYS/comp_algorithm" || return 1
-	echo "$ZRAM_SIZE" > "$ZRAM_SYS/disksize" || return 1
+	if [ -n "$bdev" ] && [ "$bdev" != none ]; then
+		echo "$bdev" > "$ZRAM_SYS/backing_dev" || log "zram: restore backing_dev $bdev failed"
+	fi
+	echo "$size" > "$ZRAM_SYS/disksize" || return 1
+	[ -n "$wle" ] && echo "$wle" > "$ZRAM_SYS/writeback_limit_enable" 2>/dev/null
+	[ -n "$wl" ] && echo "$wl" > "$ZRAM_SYS/writeback_limit" 2>/dev/null
 	mkswap "$ZRAM_DEV" >/dev/null 2>&1 || return 1
 	swapon "$ZRAM_DEV" 2>/dev/null || return 1
 	return 0
 }
 
 if [ "$ZRAM" = 1 ] && [ -e "$ZRAM_SYS/comp_algorithm" ]; then
-	used=$(awk '$1 ~ /zram0/ {print $4}' /proc/swaps 2>/dev/null)
-	used=${used:-0}
+	# 正常情况下 PerfInit 已按 perfinit.conf 覆盖里的算法初始化好 zram，这里只核对
+	i=0
+	while [ "$(cat "$ZRAM_SYS/initstate" 2>/dev/null)" != 1 ] && [ $i -lt 60 ]; do
+		sleep 1; i=$((i + 1))
+	done
+	log "zram: $(zram_state)"
 	case "$(cat "$ZRAM_SYS/comp_algorithm")" in
 		*"[$ZRAM_ALGO]"*) log "zram already $ZRAM_ALGO" ;;
 		*)
-			if [ "$used" -gt 65536 ]; then
-				log "zram swap in use ($used KB), skip switch"
+			if ! has_algo "$ZRAM_ALGO"; then
+				log "zram: $ZRAM_ALGO not registered in /proc/crypto"
+			elif [ "$(cat "$ZRAM_SYS/initstate" 2>/dev/null)" != 1 ]; then
+				# 系统没有初始化 zram，直接按配置初始化
+				echo "$ZRAM_ALGO" > "$ZRAM_SYS/comp_algorithm" && echo "$ZRAM_SIZE" > "$ZRAM_SYS/disksize" \
+					&& mkswap "$ZRAM_DEV" >/dev/null 2>&1 && swapon "$ZRAM_DEV" 2>/dev/null \
+					&& log "zram: initialized $(zram_state)" || log "zram: init failed"
+			elif [ "$ZRAM_FORCE" != 1 ]; then
+				log "zram: perfinit.conf override not effective, leave as is (ZRAM_FORCE=1 to reinit)"
 			else
-				swapoff "$ZRAM_DEV" 2>/dev/null
-				if echo 1 > "$ZRAM_SYS/reset" 2>/dev/null; then
-					if setup_zram "$ZRAM_ALGO"; then
-						log "zram switched to $ZRAM_ALGO"
-					else
-						log "zram $ZRAM_ALGO failed, fallback lz4"
-						echo 1 > "$ZRAM_SYS/reset" 2>/dev/null
-						setup_zram lz4 || log "zram fallback failed"
-					fi
+				used=$(awk '$1 ~ /zram0/ {print $4}' /proc/swaps 2>/dev/null)
+				used=${used:-0}
+				if [ "$used" -gt 65536 ]; then
+					log "zram swap in use ($used KB), skip reinit"
+				elif reinit_zram "$ZRAM_ALGO"; then
+					log "zram: reinit $(zram_state)"
 				else
-					log "zram reset failed"
+					log "zram: reinit failed $(zram_state)"
 				fi
 			fi
 			;;
 	esac
 fi
+
+# 为下次开机更新 perfinit.conf 覆盖（WebUI 改了算法或开关后生效）
+sh "$MODDIR/zram_conf.sh" "$MODDIR"
 
 if [ "$DAMON" = 1 ] && [ -e /sys/module/damon_reclaim/parameters/enabled ]; then
 	echo 100 > /sys/module/damon_reclaim/parameters/wmarks_high
