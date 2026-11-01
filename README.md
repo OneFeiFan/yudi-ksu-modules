@@ -4,7 +4,7 @@
 
 | 模块 | 版本 | 作用 |
 | --- | --- | --- |
-| `yudi-tweaks` | 2.2 | 运行时开关、状态页、MFZ 白名单与实验调参 |
+| `yudi-tweaks` | 2.3 | 运行时开关、状态页、MFZ 白名单与实验调参 |
 | `ntsync` | 1.1 | 从 misc 设备创建 `/dev/ntsync` |
 
 ## yudi-tweaks
@@ -59,11 +59,18 @@ moon_look_around、moon_mapped_protect、moon_binder），由 vendor 的
 ≥3 GB 写回 zram、≥4 GB 直接终止。它不是保活开关：普通小应用选中后基本
 没有变化；占用 2–4 GB 的游戏或应用更可能在后台留住，超过 4 GB 仍会被杀。
 
-`/product/etc/mfz.xml` 预置了 7 个游戏，模块始终保留。WebUI 可以勾选已安装的
-第三方应用，也可以手动输入包名；保存时模块把「预置 + 所选」写进
-`/data/system/mfz.xml`，并生成 `/product/etc/mfz.xml` 的模块覆盖（不同的
-mfz 实现读取路径不同，两份内容一致）。重启后生效。关闭「写入白名单」会删除
-两份文件，恢复系统自带的白名单。
+WebUI 可以勾选已安装的第三方应用，也可以手动输入包名，保存后重启生效。
+
+`mfz_conf.sh` 生成小米内存冻结（MFZ）的指定应用名单，写到两处：`/data/system/mfz.xml`，以及模块内覆盖
+`/product/etc/mfz.xml` 的文件（不同的 mfz 实现读取的路径不一样）。2.3 起：
+
+- **基础名单取自系统原件**：开机早期（模块挂载前）从原始 `/product/etc/mfz.xml` 读取并保存为
+  `mfz_base.txt` 和 `mfz_product_orig.xml`；读不到时才用内置的 7 个游戏。升级模块时沿用已保存的原件。
+- **覆盖文件以原件为底本**：原件里的其他配置原样保留，只在根元素末尾追加用户选的应用，并带
+  `yudi-tweaks mfz overlay` 标记，挂载后再次运行时据此认出这是覆盖文件，不会把它当成原件。
+- **保留系统或云控的修改**：`/data/system/mfz.xml` 若不是本模块上次写入的内容（按哈希判断），
+  其中的应用会并入新名单。
+- **关闭 MFZ 时只删自己写的文件**：`/data/system/mfz.xml` 被系统改过就保留。
 
 ## 实验调参（默认全关）
 

@@ -427,7 +427,7 @@ button.small { padding: 8px 12px; font-size: 12px; }
     <div class="row warning">
       <div class="copy">
         <div class="title">RCU 惰性回调（实验性）</div>
-        <div class="desc">rcutree.enable_rcu_lazy 设为 1，空闲时合并 RCU 回调以省电；需要 rcu_nocbs 已卸载回调。可随时关闭。</div>
+        <div class="desc">rcutree.enable_rcu_lazy 设为 1，空闲时合并 RCU 回调以省电；需要 rcu_nocbs 已卸载回调。实验项：开启前先做挂起唤醒、网络开关测试；可随时关闭。</div>
         <div class="current" id="cur-rculazy"></div>
       </div>
       <label class="switch"><input type="checkbox" id="RCU_LAZY"><span></span></label>

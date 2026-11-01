@@ -1,6 +1,6 @@
 id=yudi-tweaks
 name=Yudi 内核调整
-version=2.2
-versionCode=13
+version=2.3
+versionCode=14
 author=OneFeiFan
 description=运行时开关与内核状态：BBRv3、le9uo、zram、KSM、ADIOS、DAMON、cpuidle governor、MFZ 白名单、实验调参、RCU 惰性回调

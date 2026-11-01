@@ -9,6 +9,10 @@ sh "$MODPATH/moon_block.sh" "$MODPATH"
 if [ -d "$MODPATH/system/vendor/etc/moon_modules" ]; then
 	ui_print "- 将屏蔽 /vendor/etc/moon_modules 下的 $(ls "$MODPATH/system/vendor/etc/moon_modules" | wc -l) 个月亮内存模块"
 fi
+# 沿用旧版保存的原始名单（升级时 /product 读到的可能是旧覆盖文件）
+for f in mfz_base.txt mfz_product_orig.xml; do
+	[ -f "/data/adb/modules/yudi-tweaks/$f" ] && cp -f "/data/adb/modules/yudi-tweaks/$f" "$MODPATH/$f"
+done
 # 安装时就生成 MFZ 白名单和 /product 覆盖，保证第一次开机就生效
 sh "$MODPATH/mfz_conf.sh" "$MODPATH"
 if [ -f "$MODPATH/system/product/etc/mfz.xml" ]; then
